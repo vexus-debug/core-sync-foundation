@@ -55,9 +55,10 @@ type PrescriptionForm = z.infer<typeof prescriptionSchema>;
 interface CreatePrescriptionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preselectedPatientId?: string;
 }
 
-export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescriptionDialogProps) {
+export function CreatePrescriptionDialog({ open, onOpenChange, preselectedPatientId }: CreatePrescriptionDialogProps) {
   const terms = useClinicTerms();
   const { data: patients = [] } = usePatients();
   const { data: dentists = [] } = useDentists();
@@ -66,11 +67,22 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
   const form = useForm<PrescriptionForm>({
     resolver: zodResolver(prescriptionSchema),
     defaultValues: {
-      patientId: "",
+      patientId: preselectedPatientId || "",
       dentistId: dentists[0]?.id || "",
       medications: [{ name: "", dosage: "", frequency: "", duration: "" }],
     },
   });
+
+  // Carry the patient chosen elsewhere (e.g. their own page) into this form
+  useEffect(() => {
+    if (!open) return;
+    form.reset({
+      patientId: preselectedPatientId || "",
+      dentistId: dentists[0]?.id || "",
+      medications: [{ name: "", dosage: "", frequency: "", duration: "" }],
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, preselectedPatientId, dentists.length]);
 
   const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
