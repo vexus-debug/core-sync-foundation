@@ -210,8 +210,8 @@ export function InvoiceDetailDialog({ open, onOpenChange, invoice }: InvoiceDeta
     partial: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400",
   };
 
-  const handleRecordPayment = async () => {
-    const amount = parseFloat(payAmount);
+  const handleRecordPayment = async (fullBalance?: number) => {
+    const amount = fullBalance ?? parseFloat(payAmount);
     if (!amount || amount <= 0 || amount > balance) {
       toast({ title: "Invalid amount", variant: "destructive" });
       return;
