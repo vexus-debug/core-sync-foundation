@@ -210,8 +210,8 @@ export function InvoiceDetailDialog({ open, onOpenChange, invoice }: InvoiceDeta
     partial: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400",
   };
 
-  const handleRecordPayment = async () => {
-    const amount = parseFloat(payAmount);
+  const handleRecordPayment = async (fullBalance?: number) => {
+    const amount = fullBalance ?? parseFloat(payAmount);
     if (!amount || amount <= 0 || amount > balance) {
       toast({ title: "Invalid amount", variant: "destructive" });
       return;
@@ -454,9 +454,14 @@ export function InvoiceDetailDialog({ open, onOpenChange, invoice }: InvoiceDeta
                     </Select>
                   </div>
                 </div>
-                <Button size="sm" onClick={handleRecordPayment} className="bg-secondary hover:bg-secondary/90" disabled={recordPayment.isPending}>
-                  {recordPayment.isPending ? "Recording..." : "Confirm Payment"}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => handleRecordPayment()} className="bg-secondary hover:bg-secondary/90" disabled={recordPayment.isPending}>
+                    {recordPayment.isPending ? "Recording..." : "Confirm Payment"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleRecordPayment(balance)} disabled={recordPayment.isPending}>
+                    Pay Full Balance ({formatCurrency(balance)})
+                  </Button>
+                </div>
               </div>
             </>
           )}

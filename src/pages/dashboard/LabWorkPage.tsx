@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, FlaskConical, MessageCircle, Mail, Share2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-import { CreateLabOrderDialog } from "@/components/dashboard/CreateLabOrderDialog";
+import { CreateLabCaseDialog } from "@/components/dashboard/CreateLabCaseDialog";
 import { useLabOrders } from "@/hooks/useLabOrders";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,7 +50,7 @@ export default function LabWorkPage() {
             },
             {
               title: "Create a new lab order",
-              description: "Click 'New Lab Order'. Select the patient, assign the dentist, choose the lab work type (Crown, Bridge, Denture, etc.), and pick the laboratory.",
+              description: "Click 'New Lab Case'. Select the patient, assign the dentist, choose the lab work type (Crown, Bridge, Denture, etc.), and pick the laboratory.",
               tip: "Fill in the due date carefully — labs need adequate lead time, typically 5–14 days for most prosthetic work.",
             },
             {
@@ -74,7 +74,7 @@ export default function LabWorkPage() {
       >
         <Button size="sm" className="bg-secondary hover:bg-secondary/90 shadow-lg shadow-secondary/20" onClick={() => setLabOpen(true)} data-tour="lab-work-new">
           <Plus className="mr-2 h-4 w-4" />
-          New Lab Order
+          New Lab Case
         </Button>
       </PageHeader>
 
@@ -153,7 +153,7 @@ export default function LabWorkPage() {
           })}
         </motion.div>
       )}
-      <CreateLabOrderDialog open={labOpen} onOpenChange={setLabOpen} />
+      <CreateLabCaseDialog open={labOpen} onOpenChange={setLabOpen} />
     </div>
   );
 }
