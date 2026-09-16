@@ -20,6 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { useClinicTerms } from "@/hooks/useClinicTerms";
+import { useWaitingList, useAddToWaitingList } from "@/hooks/useWaitingList";
 
 const defaultChairs = ["Chair 1", "Chair 2", "Chair 3"];
 const defaultSlots = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00"];
@@ -91,6 +92,9 @@ export default function AppointmentsPage() {
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentRow | null>(null);
 
   const { data: appointments = [], isLoading } = useAppointmentsByDate(currentDate);
+  const { data: waitingList = [] } = useWaitingList();
+  const addToQueue = useAddToWaitingList();
+  const queuedAppointmentIds = new Set(waitingList.map((w) => w.appointment_id).filter(Boolean) as string[]);
   const { data: monthAppointments = [] } = useMonthAppointments(currentDate);
 
   const displayAppointments = appointments.map((a) => ({
@@ -366,6 +370,7 @@ export default function AppointmentsPage() {
                         <th className="py-3 px-4 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider hidden md:table-cell">Chair</th>
                         <th className="py-3 px-4 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider">Treatment</th>
                         <th className="py-3 px-4 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider">Status</th>
+                        <th className="py-3 px-4 text-right font-medium text-muted-foreground text-xs uppercase tracking-wider">Arrival</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -390,6 +395,21 @@ export default function AppointmentsPage() {
                                 <span className={`h-1.5 w-1.5 rounded-full ${statusDots[apt.status] || ""}`} />
                                 {apt.status.replace("-", " ")}
                               </span>
+                            </td>
+                            <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                              {queuedAppointmentIds.has(apt.id) ? (
+                                <span className="text-[11px] text-emerald-600 font-medium">Checked in</span>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-[11px]"
+                                  disabled={addToQueue.isPending || apt.status === "cancelled"}
+                                  onClick={() => addToQueue.mutate({ patient_id: apt.patient_id, appointment_id: apt.id })}
+                                >
+                                  Check in
+                                </Button>
+                              )}
                             </td>
                           </motion.tr>
                         );
