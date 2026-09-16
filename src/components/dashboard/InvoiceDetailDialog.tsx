@@ -454,9 +454,14 @@ export function InvoiceDetailDialog({ open, onOpenChange, invoice }: InvoiceDeta
                     </Select>
                   </div>
                 </div>
-                <Button size="sm" onClick={handleRecordPayment} className="bg-secondary hover:bg-secondary/90" disabled={recordPayment.isPending}>
-                  {recordPayment.isPending ? "Recording..." : "Confirm Payment"}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => handleRecordPayment()} className="bg-secondary hover:bg-secondary/90" disabled={recordPayment.isPending}>
+                    {recordPayment.isPending ? "Recording..." : "Confirm Payment"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleRecordPayment(balance)} disabled={recordPayment.isPending}>
+                    Pay Full Balance ({formatCurrency(balance)})
+                  </Button>
+                </div>
               </div>
             </>
           )}
