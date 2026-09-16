@@ -7,6 +7,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateTreatment, useUpdateTreatment, type Treatment } from "@/hooks/useTreatments";
 
+const treatmentTemplates = [
+  { label: "Scaling & Polishing", name: "Scaling & Polishing", category: "Preventive", price: "25000", duration: "45 mins", description: "Full-mouth cleaning and polishing." },
+  { label: "Composite Filling", name: "Composite Filling", category: "Restorative", price: "30000", duration: "40 mins", description: "Tooth-coloured filling on one tooth." },
+  { label: "Simple Extraction", name: "Simple Extraction", category: "Surgical", price: "35000", duration: "30 mins", description: "Routine extraction under local anaesthesia." },
+  { label: "Root Canal Treatment", name: "Root Canal Treatment", category: "Restorative", price: "120000", duration: "90 mins", description: "Endodontic treatment, single canal." },
+  { label: "Teeth Whitening", name: "Teeth Whitening", category: "Cosmetic", price: "80000", duration: "60 mins", description: "In-office whitening session." },
+];
+
 const categories = ["General", "Cosmetic", "Orthodontics", "Restorative", "Surgical", "Periodontics", "Preventive"];
 
 interface TreatmentDialogProps {
@@ -54,6 +62,25 @@ export function TreatmentDialog({ treatment, open, onOpenChange }: TreatmentDial
       <DialogContent>
         <DialogHeader><DialogTitle>{isEdit ? "Edit Treatment" : "Add Treatment"}</DialogTitle></DialogHeader>
         <div className="space-y-3">
+          {!isEdit && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Quick templates</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {treatmentTemplates.map((t) => (
+                  <Button
+                    key={t.label}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[11px]"
+                    onClick={() => setForm({ name: t.name, category: t.category, price: t.price, duration: t.duration, description: t.description })}
+                  >
+                    {t.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="space-y-1">
             <Label className="text-xs">Name *</Label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
