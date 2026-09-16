@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -16,7 +16,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
@@ -42,25 +41,19 @@ const JOB_INSTRUCTION_OPTIONS = [
   "Gingival Masking",
 ] as const;
 
-const REMARK_OPTIONS = [
-  "Express",
-  "Rejected",
-  "Damaged",
-  "Repeat",
-  "Remake",
-] as const;
+const REMARK_OPTIONS = ["Express", "Rejected", "Damaged", "Repeat", "Remake"] as const;
 
 const labCaseSchema = z.object({
-  clinicCode: z.string().optional(),
-  clinicDoctorName: z.string().min(1, "Required"),
   patientId: z.string().min(1, "Select a patient"),
   dentistId: z.string().min(1, "Select a dentist"),
   jobInstructions: z.array(z.string()).min(1, "Select at least one"),
+  cost: z.coerce.number().min(0, "Must be >= 0"),
+  dueDate: z.date({ required_error: "Select delivery date" }),
+  // Optional extras (hidden until "More details" is opened)
+  clinicCode: z.string().optional(),
   jobDescription: z.string().optional(),
   shade: z.string().optional(),
-  cost: z.coerce.number().min(0, "Must be >= 0"),
   discount: z.coerce.number().min(0).default(0),
-  dueDate: z.date({ required_error: "Select delivery date" }),
   isPaid: z.boolean().default(false),
   remark: z.string().optional(),
   instructions: z.string().optional(),
@@ -71,41 +64,55 @@ type LabCaseFormValues = z.infer<typeof labCaseSchema>;
 interface CreateLabCaseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preselectedPatientId?: string;
 }
 
-export function CreateLabCaseDialog({ open, onOpenChange }: CreateLabCaseDialogProps) {
+const emptyValues = (patientId?: string): LabCaseFormValues => ({
+  patientId: patientId || "",
+  dentistId: "",
+  jobInstructions: [],
+  cost: 0,
+  dueDate: undefined as unknown as Date,
+  clinicCode: "",
+  jobDescription: "",
+  shade: "",
+  discount: 0,
+  isPaid: false,
+  remark: "none",
+  instructions: "",
+});
+
+export function CreateLabCaseDialog({ open, onOpenChange, preselectedPatientId }: CreateLabCaseDialogProps) {
   const terms = useClinicTerms();
   const { data: patients = [] } = usePatients();
   const { data: dentists = [] } = useDentists();
   const createLabCase = useCreateLabCase();
+  const [showMore, setShowMore] = useState(false);
 
   const form = useForm<LabCaseFormValues>({
     resolver: zodResolver(labCaseSchema),
-    defaultValues: {
-      clinicCode: "",
-      clinicDoctorName: "",
-      patientId: "",
-      dentistId: "",
-      jobInstructions: [],
-      jobDescription: "",
-      shade: "",
-      cost: 0,
-      discount: 0,
-      isPaid: false,
-      remark: "none",
-      instructions: "",
-    },
+    defaultValues: emptyValues(preselectedPatientId),
   });
+
+  // Carry the patient chosen elsewhere (e.g. their own page) into this form
+  useEffect(() => {
+    if (!open) return;
+    form.reset(emptyValues(preselectedPatientId));
+    setShowMore(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, preselectedPatientId]);
 
   function onSubmit(data: LabCaseFormValues) {
     const workType = data.jobInstructions.join(", ");
+    // The doctor's name comes from the chosen clinician — no need to type it again
+    const doctorName = dentists.find((d) => d.id === data.dentistId)?.full_name || "";
     createLabCase.mutate(
       {
         patient_id: data.patientId,
         dentist_id: data.dentistId,
         work_type: workType,
         clinic_code: data.clinicCode || "",
-        clinic_doctor_name: data.clinicDoctorName,
+        clinic_doctor_name: doctorName,
         job_instructions: data.jobInstructions,
         job_description: data.jobDescription || "",
         shade: data.shade || "",
@@ -118,7 +125,7 @@ export function CreateLabCaseDialog({ open, onOpenChange }: CreateLabCaseDialogP
       },
       {
         onSuccess: () => {
-          form.reset();
+          form.reset(emptyValues());
           onOpenChange(false);
         },
       }
@@ -129,31 +136,13 @@ export function CreateLabCaseDialog({ open, onOpenChange }: CreateLabCaseDialogP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>New Lab Registration</DialogTitle>
-          <DialogDescription>Register a new lab case with job details.</DialogDescription>
+          <DialogTitle>New Lab Case</DialogTitle>
+          <DialogDescription>Five details are all that's needed — the rest is optional.</DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Clinic Code & Doctor Name */}
-            <div className="grid gap-3 sm:grid-cols-2">
-              <FormField control={form.control} name="clinicCode" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Clinic Code</FormLabel>
-                  <FormControl><Input placeholder="e.g. VC-001" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="clinicDoctorName" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Clinic / Doctor Name *</FormLabel>
-                  <FormControl><Input placeholder="Dr. Smith / ABC Clinic" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-            </div>
-
-            {/* Patient & Dentist */}
+            {/* Patient & Clinician */}
             <div className="grid gap-3 sm:grid-cols-2">
               <FormField control={form.control} name="patientId" render={({ field }) => (
                 <FormItem>
@@ -189,7 +178,7 @@ export function CreateLabCaseDialog({ open, onOpenChange }: CreateLabCaseDialogP
               )} />
             </div>
 
-            {/* Job Instructions (multi-select checkboxes) */}
+            {/* Job Instructions */}
             <FormField control={form.control} name="jobInstructions" render={() => (
               <FormItem>
                 <FormLabel>Job Instructions *</FormLabel>
@@ -207,9 +196,7 @@ export function CreateLabCaseDialog({ open, onOpenChange }: CreateLabCaseDialogP
                               onCheckedChange={(checked) => {
                                 const current = field.value || [];
                                 field.onChange(
-                                  checked
-                                    ? [...current, option]
-                                    : current.filter((v: string) => v !== option)
+                                  checked ? [...current, option] : current.filter((v: string) => v !== option)
                                 );
                               }}
                             />
@@ -224,24 +211,8 @@ export function CreateLabCaseDialog({ open, onOpenChange }: CreateLabCaseDialogP
               </FormItem>
             )} />
 
-            {/* Job Description */}
-            <FormField control={form.control} name="jobDescription" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Job Description</FormLabel>
-                <FormControl><Textarea placeholder="Additional job details..." rows={2} {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-
-            {/* Shade, Cost, Discount */}
-            <div className="grid gap-3 sm:grid-cols-3">
-              <FormField control={form.control} name="shade" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Shade</FormLabel>
-                  <FormControl><Input placeholder="e.g. A2, B1" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+            {/* Cost & Delivery date */}
+            <div className="grid gap-3 sm:grid-cols-2">
               <FormField control={form.control} name="cost" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cost (₦) *</FormLabel>
@@ -249,17 +220,6 @@ export function CreateLabCaseDialog({ open, onOpenChange }: CreateLabCaseDialogP
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField control={form.control} name="discount" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Discount (₦)</FormLabel>
-                  <FormControl><Input type="number" min={0} step={100} {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-            </div>
-
-            {/* Due Date & Remark */}
-            <div className="grid gap-3 sm:grid-cols-2">
               <FormField control={form.control} name="dueDate" render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Expected Delivery Date *</FormLabel>
@@ -282,46 +242,80 @@ export function CreateLabCaseDialog({ open, onOpenChange }: CreateLabCaseDialogP
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField control={form.control} name="remark" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Remark</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger><SelectValue placeholder="Select remark" /></SelectTrigger>
-                    </FormControl>
-                     <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {REMARK_OPTIONS.map((r) => (
-                        <SelectItem key={r} value={r}>{r}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
             </div>
 
-            {/* Payment Status Toggle */}
-            <FormField control={form.control} name="isPaid" render={({ field }) => (
-              <FormItem className="flex items-center gap-3 rounded-lg border p-3 bg-muted/20">
-                <FormControl>
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
-                </FormControl>
-                <div>
-                  <FormLabel className="text-sm font-medium">Payment Status</FormLabel>
-                  <p className="text-xs text-muted-foreground">{field.value ? "Paid" : "Unpaid"}</p>
-                </div>
-              </FormItem>
-            )} />
+            <Button type="button" variant="ghost" size="sm" className="px-0" onClick={() => setShowMore((s) => !s)}>
+              <ChevronDown className={cn("mr-1.5 h-4 w-4 transition-transform", showMore && "rotate-180")} />
+              {showMore ? "Hide extra details" : "More details (optional)"}
+            </Button>
 
-            {/* Special Instructions */}
-            <FormField control={form.control} name="instructions" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Special Instructions</FormLabel>
-                <FormControl><Textarea placeholder="Additional notes..." rows={2} {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
+            {showMore && (
+              <div className="space-y-4 rounded-lg border p-3 bg-muted/10">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <FormField control={form.control} name="clinicCode" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Clinic Code</FormLabel>
+                      <FormControl><Input placeholder="e.g. VC-001" {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="shade" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Shade</FormLabel>
+                      <FormControl><Input placeholder="e.g. A2, B1" {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="discount" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Discount (₦)</FormLabel>
+                      <FormControl><Input type="number" min={0} step={100} {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+                </div>
+
+                <FormField control={form.control} name="jobDescription" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Job Description</FormLabel>
+                    <FormControl><Textarea placeholder="Additional job details..." rows={2} {...field} /></FormControl>
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="remark" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Remark</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger><SelectValue placeholder="Select remark" /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {REMARK_OPTIONS.map((r) => (
+                          <SelectItem key={r} value={r}>{r}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="isPaid" render={({ field }) => (
+                  <FormItem className="flex items-center gap-3 rounded-lg border p-3 bg-muted/20">
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <div>
+                      <FormLabel className="text-sm font-medium">Payment Status</FormLabel>
+                      <p className="text-xs text-muted-foreground">{field.value ? "Paid" : "Unpaid"}</p>
+                    </div>
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="instructions" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Special Instructions</FormLabel>
+                    <FormControl><Textarea placeholder="Additional notes..." rows={2} {...field} /></FormControl>
+                  </FormItem>
+                )} />
+              </div>
+            )}
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
